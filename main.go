@@ -41,12 +41,24 @@ func NewDenoise() (*Denoise, error) {
 
 // Process обрабатывает фрейм данных (480 сэмплов для 10 мс при 48 кГц)
 func (d *Denoise) Process(frame []int16) (float32, error) {
-	if len(frame) != 480 {
-		return 0, errors.New("frame must contain exactly 480 samples")
-	}
-	inout := (*C.short)(unsafe.Pointer(&frame[0]))
-	vadProb := C.process_frame(unsafe.Pointer(d.state), inout)
-	return float32(vadProb), nil
+    if len(frame) != 480 {
+        return 0, errors.New("frame must contain exactly 480 samples")
+    }
+
+    // Конвертация int16 в float32
+    floatFrame := make([]float32, len(frame))
+    for i, sample := range frame {
+        floatFrame[i] = float32(sample) / 32768.0
+    }
+
+    inout := (*C.float)(unsafe.Pointer(&floatFrame[0]))
+    vadProb := C.process_frame(unsafe.Pointer(d.state), inout)
+
+    // Конвертация float32 обратно в int16
+    for i := range frame {
+        frame[i] = int16(floatFrame[i] * 32768.0)
+    }
+    return float32(vadProb), nil
 }
 
 // Close освобождает память, связанную с объектом Denoise
